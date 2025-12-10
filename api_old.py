@@ -1,169 +1,23 @@
 """
 API FastAPI para previsão de preços de ações com LSTM
 """
-from fastapi import FastAPI, HTTPException, Query, Path
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 import os
 
-from config import DEFAULT_TICKER, API_HOST, API_PORT, MODELS_DIR, SEQUENCE_LENGTH, FEATURES
+from config import DEFAULT_TICKER, API_HOST, API_PORT, MODELS_DIR
+from predict import StockPredictor
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-
-# ==========================
-# StockPredictor (inline)
-# ==========================
-# Mantemos o predictor dentro deste arquivo para evitar erros de import
-# quando o módulo `predict.py` não estiver presente/atualizado.
-import numpy as np  # noqa: F401
-
-from data_collector import StockDataCollector
-from preprocessor import StockDataPreprocessor
-from model import StockLSTMModel
-
-
-class StockPredictor:
-    """Classe para fazer previsões de ações."""
-
-    def __init__(self, ticker: str = DEFAULT_TICKER):
-        self.ticker = ticker.upper()
-        self.model = StockLSTMModel()
-        self.preprocessor = StockDataPreprocessor(
-            features=FEATURES,
-            validate_data=False,  # Desabilitado por padrão para previsões
-            auto_clean=False
-        )
-        self.collector = StockDataCollector(self.ticker)
-        self._is_loaded = False
-
-    def load(self) -> None:
-        """Carrega modelo e scalers treinados."""
-        try:
-            self.model.load_model(self.ticker)
-            self.preprocessor.load_scalers(self.ticker)
-            self._is_loaded = True
-            logger.info(f"Modelo e scalers carregados para {self.ticker}")
-        except FileNotFoundError as e:
-            raise FileNotFoundError(
-                f"Modelo não encontrado para {self.ticker}. "
-                "Execute train.py primeiro."
-            ) from e
-
-    def predict_next_day(self) -> dict:
-        """Prevê o preço de fechamento do próximo dia útil."""
-        if not self._is_loaded:
-            self.load()
-
-        logger.info("Coletando dados recentes...")
-        df = self.collector.get_latest_data(days=SEQUENCE_LENGTH + 30)
-
-        self.preprocessor.validate_data = False
-        df_features = self.preprocessor.prepare_features(df, ticker=self.ticker)
-
-        if len(df_features) < SEQUENCE_LENGTH:
-            raise ValueError(
-                f"Dados insuficientes. Necessário: {SEQUENCE_LENGTH}, "
-                f"Disponível: {len(df_features)}"
-            )
-
-        X = self.preprocessor.prepare_prediction_data(df_features)
-        prediction_scaled = self.model.predict(X)
-        prediction = self.preprocessor.inverse_transform_predictions(prediction_scaled)
-
-        last_close = float(df_features['Close'].iloc[-1])
-        predicted_price = float(prediction[0][0])
-        change = predicted_price - last_close
-        change_pct = (change / last_close) * 100
-
-        last_date = df_features.index[-1]
-        next_date = self._get_next_business_day(last_date)
-
-        return {
-            "ticker": self.ticker,
-            "prediction_date": next_date.strftime("%Y-%m-%d"),
-            "last_close": round(last_close, 2),
-            "last_close_date": last_date.strftime("%Y-%m-%d"),
-            "predicted_close": round(predicted_price, 2),
-            "expected_change": round(change, 2),
-            "expected_change_pct": round(change_pct, 2),
-            "direction": "UP" if change > 0 else "DOWN",
-            "generated_at": datetime.now().isoformat()
-        }
-
-    def predict_n_days(self, n_days: int = 5) -> list:
-        """Prevê os próximos N dias (previsão iterativa)."""
-        if not self._is_loaded:
-            self.load()
-
-        df = self.collector.get_latest_data(days=SEQUENCE_LENGTH + 30)
-
-        self.preprocessor.validate_data = False
-        df_features = self.preprocessor.prepare_features(df, ticker=self.ticker)
-
-        predictions = []
-        current_features = df_features.copy()
-        last_date = current_features.index[-1]
-
-        for i in range(n_days):
-            X = self.preprocessor.prepare_prediction_data(current_features)
-            pred_scaled = self.model.predict(X)
-            pred = self.preprocessor.inverse_transform_predictions(pred_scaled)[0][0]
-
-            next_date = self._get_next_business_day(last_date)
-
-            predictions.append({
-                "day": i + 1,
-                "date": next_date.strftime("%Y-%m-%d"),
-                "predicted_close": round(float(pred), 2),
-                "uncertainty": "low" if i < 2 else "medium" if i < 4 else "high"
-            })
-
-            # Atualizar para próxima previsão (heurística simples)
-            new_row = current_features.iloc[-1].copy()
-            new_row['Close'] = pred
-            new_row['Open'] = current_features['Close'].iloc[-1]
-            new_row['High'] = max(pred, new_row['Open']) * 1.01
-            new_row['Low'] = min(pred, new_row['Open']) * 0.99
-            new_row.name = next_date
-
-            current_features = self.preprocessor.prepare_features(
-                current_features._append(new_row),
-                ticker=self.ticker
-            )
-            last_date = next_date
-
-        return predictions
-
-    def _get_next_business_day(self, date) -> datetime:
-        """Retorna o próximo dia útil."""
-        next_day = date + timedelta(days=1)
-        while next_day.weekday() >= 5:
-            next_day += timedelta(days=1)
-        return next_day
-
-    def get_model_info(self) -> dict:
-        """Retorna informações sobre o modelo carregado."""
-        if not self._is_loaded:
-            self.load()
-
-        stock_info = self.collector.get_stock_info()
-
-        return {
-            "ticker": self.ticker,
-            "stock_info": stock_info,
-            "model_loaded": True,
-            "sequence_length": getattr(self.preprocessor, "sequence_length", SEQUENCE_LENGTH),
-            "features_used": getattr(self.preprocessor, "fitted_features", FEATURES)
-        }
 
 # Inicializar FastAPI
 app = FastAPI(
@@ -349,8 +203,8 @@ async def health_check():
     summary="Prever próximo dia"
 )
 async def predict_next_day(
-    ticker: str = Path(
-        ..., 
+    ticker: str = Query(
+        ...,
         description="Símbolo da ação (ex: NVDA, AAPL, GOOGL)",
         min_length=1,
         max_length=10
@@ -388,14 +242,9 @@ async def predict_next_day(
     summary="Prever múltiplos dias"
 )
 async def predict_multiple_days(
-    ticker: str = Path(
-        ..., 
-        description="Símbolo da ação (ex: NVDA, AAPL, GOOGL)",
-        min_length=1,
-        max_length=10
-    ),
-    n_days: int = Path(
-        ..., 
+    ticker: str,
+    n_days: int = Query(
+        ...,
         ge=1,
         le=30,
         description="Número de dias para prever (1-30)"
@@ -428,47 +277,47 @@ async def predict_multiple_days(
         )
 
 
-# @app.get(
-#     "/model/{ticker}",
-#     response_model=ModelInfoResponse,
-#     responses={
-#         404: {"model": ErrorResponse, "description": "Modelo não encontrado"}
-#     },
-#     summary="Informações do modelo"
-# )
-# async def get_model_info(ticker: str):
-#     """
-#     Retorna informações sobre o modelo treinado.
+@app.get(
+    "/model/{ticker}",
+    response_model=ModelInfoResponse,
+    responses={
+        404: {"model": ErrorResponse, "description": "Modelo não encontrado"}
+    },
+    summary="Informações do modelo"
+)
+async def get_model_info(ticker: str):
+    """
+    Retorna informações sobre o modelo treinado.
     
-#     - **ticker**: Símbolo da ação
+    - **ticker**: Símbolo da ação
     
-#     Inclui informações da ação, features usadas e configuração do modelo.
-#     """
-#     try:
-#         predictor = get_predictor(ticker)
-#         info = predictor.get_model_info()
-#         return ModelInfoResponse(**info)
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         logger.error(f"Erro ao obter info do modelo: {e}")
-#         raise HTTPException(
-#             status_code=500,
-#             detail=f"Erro ao obter informações: {str(e)}"
-#         )
+    Inclui informações da ação, features usadas e configuração do modelo.
+    """
+    try:
+        predictor = get_predictor(ticker)
+        info = predictor.get_model_info()
+        return ModelInfoResponse(**info)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao obter info do modelo: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao obter informações: {str(e)}"
+        )
 
 
-# @app.get(
-#     "/models",
-#     summary="Listar modelos disponíveis"
-# )
-# async def list_models():
-#     """Lista todos os modelos treinados disponíveis."""
-#     models = get_available_models()
-#     return {
-#         "available_models": models,
-#         "count": len(models)
-#     }
+@app.get(
+    "/models",
+    summary="Listar modelos disponíveis"
+)
+async def list_models():
+    """Lista todos os modelos treinados disponíveis."""
+    models = get_available_models()
+    return {
+        "available_models": models,
+        "count": len(models)
+    }
 
 
 # Eventos de startup/shutdown
