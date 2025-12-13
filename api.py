@@ -95,7 +95,6 @@ class StockPredictor:
             "predicted_close": round(predicted_price, 2),
             "expected_change": round(change, 2),
             "expected_change_pct": round(change_pct, 2),
-            "direction": "UP" if change > 0 else "DOWN",
             "generated_at": datetime.now().isoformat()
         }
 
@@ -123,8 +122,7 @@ class StockPredictor:
             predictions.append({
                 "day": i + 1,
                 "date": next_date.strftime("%Y-%m-%d"),
-                "predicted_close": round(float(pred), 2),
-                "uncertainty": "low" if i < 2 else "medium" if i < 4 else "high"
+                "predicted_close": round(float(pred), 2)
             })
 
             # Atualizar para próxima previsão (heurística simples)
@@ -175,7 +173,6 @@ app = FastAPI(
     
     * **Previsão de próximo dia**: Prevê o preço de fechamento do próximo dia útil
     * **Previsão de múltiplos dias**: Prevê os próximos N dias (com incerteza crescente)
-    * **Informações do modelo**: Retorna detalhes sobre o modelo treinado
     
     ## Disclaimer
     
@@ -209,7 +206,6 @@ class PredictionResponse(BaseModel):
     predicted_close: float = Field(..., description="Preço previsto")
     expected_change: float = Field(..., description="Variação esperada em $")
     expected_change_pct: float = Field(..., description="Variação esperada em %")
-    direction: str = Field(..., description="Direção esperada (UP/DOWN)")
     generated_at: str = Field(..., description="Timestamp da previsão")
     
     class Config:
@@ -233,7 +229,6 @@ class MultiDayPrediction(BaseModel):
     day: int = Field(..., description="Número do dia (1 = amanhã)")
     date: str = Field(..., description="Data da previsão")
     predicted_close: float = Field(..., description="Preço previsto")
-    uncertainty: str = Field(..., description="Nível de incerteza (low/medium/high)")
 
 
 class MultiDayPredictionResponse(BaseModel):
