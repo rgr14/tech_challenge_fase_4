@@ -1,0 +1,23 @@
+# Ambiente virtual
+venv/
+.venv/
+
+# Cache do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter / ML
+.ipynb_checkpoints/
+
+# Modelos e scalers (se forem grandes)
+models/
+scalers/
+
+
+# Dados locais (se não quiser versionar)
+# data/
+
+# Variáveis de ambiente
+.env
