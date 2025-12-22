@@ -1,3 +1,6 @@
+"""
+Configurações centralizadas - CLONE DO MODELO ORIGINAL VENCEDOR
+"""
 from pathlib import Path
 
 # Diretórios
@@ -12,28 +15,27 @@ SCALERS_DIR.mkdir(exist_ok=True)
 
 # Configurações de dados
 DEFAULT_TICKER = "NVDA"
-DEFAULT_START_DATE = "2020-01-01"
+DEFAULT_START_DATE = "2019-01-01" # O original usava 2019, não 2020
 DEFAULT_END_DATE = None
 
-SEQUENCE_LENGTH = 30  
-
-TRAIN_TEST_SPLIT = 0.8
-FEATURES = ["Close", "Volume", "High", "Low", "Open"]
-TARGET = "Close"
-
-# --- VOLTANDO PARA A CONFIGURAÇÃO FORTE ---
-LSTM_UNITS_1 = 100  # <--- De volta para 100
-LSTM_UNITS_2 = 100  # <--- De volta para 100
-DENSE_UNITS = 32
-
-# Mantemos o Dropout em 0.2 (Padrão de mercado)
-DROPOUT_RATE = 0.2
+# --- PARÂMETROS DO GRID SEARCH VENCEDOR ---
+SEQUENCE_LENGTH = 30           # look_back=30
+LSTM_UNITS_1 = 100             # lstm_units=100
+LSTM_UNITS_2 = 100             # (Camada 2 igual a 1)
+DENSE_UNITS = 32               # (Não usado explicitamente no original, mas mantemos)
+DROPOUT_RATE = 0.2             # dropout=0.2
 
 # Treinamento
-EPOCHS = 100
-BATCH_SIZE = 32
+EPOCHS = 100                   # epochs=100
+BATCH_SIZE = 32                # batch=32
+TRAIN_TEST_SPLIT = 0.8         # 80% treino
 
-EARLY_STOPPING_PATIENCE = 15
+# --- CRÍTICO: MODO UNIVARIADO ---
+# O original usava apenas df[['Close']]
+FEATURES = ["Close"] 
+TARGET = "Close"
+
+EARLY_STOPPING_PATIENCE = 10   # O original usava 10
 REDUCE_LR_PATIENCE = 5
 
 API_HOST = "0.0.0.0"

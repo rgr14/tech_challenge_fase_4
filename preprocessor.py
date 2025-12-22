@@ -107,103 +107,24 @@ class StockDataPreprocessor:
     
     def prepare_features(self, df: pd.DataFrame, ticker: str = "UNKNOWN") -> pd.DataFrame:
         """
-        Prepara features adicionais para o modelo.
-        
-        Args:
-            df: DataFrame com dados brutos
-            ticker: Símbolo da ação (para relatório)
-        
-        Returns:
-            DataFrame com features adicionais
+        Versão SIMPLIFICADA: Apenas retorna os dados limpos, sem criar indicadores.
+        Isso imita o comportamento do código 'vencedor' original.
         """
-        # 1. Validar e limpar dados primeiro
+        # 1. Validar e limpar (mantemos isso pois é segurança básica)
         df = self.validate_and_clean_data(df, ticker)
         
-        df = df.copy()
-        
-        logger.info("\n" + "=" * 50)
-        logger.info("FEATURE ENGINEERING")
-        logger.info("=" * 50)
-        
-        initial_cols = len(df.columns)
-        
-        # 2. Verificar colunas obrigatórias
-        required = ['Open', 'High', 'Low', 'Close', 'Volume']
-        missing_cols = [col for col in required if col not in df.columns]
-        if missing_cols:
-            raise ValueError(f"Colunas obrigatórias faltando: {missing_cols}")
-        
-        # 3. Features de retorno (com tratamento de divisão por zero)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
+        # 2. Se a configuração pede apenas 'Close', retornamos apenas isso
+        # sem calcular RSI, MACD, etc.
+        if len(self.features) == 1 and 'Close' in self.features:
+            logger.info("Modo Simplificado: Usando apenas coluna Close (Univariado)")
+            return df[['Close']]
             
-            df["Returns"] = df["Close"].pct_change()
-            df["Log_Returns"] = np.log(df["Close"] / df["Close"].shift(1))
-            
-            # Substituir infinitos por NaN
-            df["Log_Returns"] = df["Log_Returns"].replace([np.inf, -np.inf], np.nan)
+        # --- CÓDIGO ANTIGO FICARIA AQUI, MAS VAMOS PULAR ---
+        # Se quiser usar as features complexas no futuro, a lógica original entraria aqui.
+        # Por enquanto, retornamos apenas as colunas solicitadas no config.
         
-        # 4. Médias móveis
-        df["MA_7"] = df["Close"].rolling(window=7, min_periods=1).mean()
-        df["MA_21"] = df["Close"].rolling(window=21, min_periods=1).mean()
-        df["MA_50"] = df["Close"].rolling(window=50, min_periods=1).mean()
-        
-        # Razões de médias móveis (indicadores de tendência)
-        df["MA_7_21_Ratio"] = df["MA_7"] / df["MA_21"]
-        df["Price_MA21_Ratio"] = df["Close"] / df["MA_21"]
-        
-        # 5. Volatilidade
-        df["Volatility_7"] = df["Returns"].rolling(window=7, min_periods=1).std()
-        df["Volatility_21"] = df["Returns"].rolling(window=21, min_periods=1).std()
-        
-        # 6. RSI (Relative Strength Index)
-        df["RSI"] = self._calculate_rsi(df["Close"])
-        
-        # 7. MACD
-        df["MACD"] = self._calculate_macd(df["Close"])
-        df["MACD_Signal"] = df["MACD"].ewm(span=9, adjust=False).mean()
-        df["MACD_Hist"] = df["MACD"] - df["MACD_Signal"]
-        
-        # 8. Bollinger Bands
-        df["BB_Upper"], df["BB_Lower"] = self._calculate_bollinger_bands(df["Close"])
-        df["BB_Width"] = (df["BB_Upper"] - df["BB_Lower"]) / df["Close"]
-        df["BB_Position"] = (df["Close"] - df["BB_Lower"]) / (df["BB_Upper"] - df["BB_Lower"])
-        
-        # 9. Price momentum
-        df["Momentum_7"] = df["Close"] - df["Close"].shift(7)
-        df["Momentum_14"] = df["Close"] - df["Close"].shift(14)
-        df["ROC_7"] = (df["Close"] - df["Close"].shift(7)) / df["Close"].shift(7) * 100
-        
-        # 10. Volume features
-        df["Volume_MA_7"] = df["Volume"].rolling(window=7, min_periods=1).mean()
-        df["Volume_Ratio"] = df["Volume"] / df["Volume_MA_7"]
-        df["Volume_Change"] = df["Volume"].pct_change()
-        
-        # 11. Range e volatilidade intraday
-        df["Daily_Range"] = (df["High"] - df["Low"]) / df["Close"]
-        df["Daily_Return"] = (df["Close"] - df["Open"]) / df["Open"]
-        
-        # 12. ATR (Average True Range)
-        df["ATR"] = self._calculate_atr(df)
-        
-        # 13. Stochastic Oscillator
-        df["Stoch_K"], df["Stoch_D"] = self._calculate_stochastic(df)
-        
-        # 14. Day of week (pode capturar padrões sazonais)
-        df["Day_of_Week"] = df.index.dayofweek / 6  # Normalizado 0-1
-        df["Month"] = df.index.month / 12  # Normalizado 0-1
-        
-        # 15. Tratar valores problemáticos gerados
-        df = self._handle_feature_issues(df)
-        
-        # Remover NaN gerados pelas features (janelas iniciais)
-        df = df.dropna()
-        
-        final_cols = len(df.columns)
-        logger.info(f"Features criadas: {initial_cols} → {final_cols} colunas")
-        logger.info(f"Registros após feature engineering: {len(df)}")
-        
-        return df
+        available_features = [col for col in self.features if col in df.columns]
+        return df[available_features]
     
     def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
         """Calcula o RSI (Relative Strength Index)."""
