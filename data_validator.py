@@ -75,18 +75,18 @@ class DataQualityReport:
             if self.duplicate_rows > 0:
                 lines.append(f"  ⚠️  Linhas duplicadas: {self.duplicate_rows}")
         
-        lines.append("\n--- Gaps Temporais ---")
-        if self.total_gaps == 0:
-            lines.append("✅ Série temporal contínua (sem gaps)")
-        else:
-            lines.append(f"  ⚠️  {self.total_gaps} dias de negociação faltando")
-            if len(self.missing_trading_days) <= 10:
-                for day in self.missing_trading_days:
-                    lines.append(f"      - {day}")
-            else:
-                for day in self.missing_trading_days[:5]:
-                    lines.append(f"      - {day}")
-                lines.append(f"      ... e mais {len(self.missing_trading_days) - 5} dias")
+        # lines.append("\n--- Gaps Temporais ---")
+        # if self.total_gaps == 0:
+        #     lines.append("✅ Série temporal contínua (sem gaps)")
+        # else:
+        #     lines.append(f"  ⚠️  {self.total_gaps} dias de negociação faltando")
+        #     if len(self.missing_trading_days) <= 10:
+        #         for day in self.missing_trading_days:
+        #             lines.append(f"      - {day}")
+        #     else:
+        #         for day in self.missing_trading_days[:5]:
+        #             lines.append(f"      - {day}")
+        #         lines.append(f"      ... e mais {len(self.missing_trading_days) - 5} dias")
         
         lines.append("\n--- Outliers ---")
         if self.total_outliers == 0:
