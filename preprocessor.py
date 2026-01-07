@@ -115,13 +115,9 @@ class StockDataPreprocessor:
         
         # 2. Se a configuração pede apenas 'Close', retornamos apenas isso
         # sem calcular RSI, MACD, etc.
-        if len(self.features) == 1 and 'Close' in self.features:
-            logger.info("Modo Simplificado: Usando apenas coluna Close (Univariado)")
-            return df[['Close']]
-            
-        # --- CÓDIGO ANTIGO FICARIA AQUI, MAS VAMOS PULAR ---
-        # Se quiser usar as features complexas no futuro, a lógica original entraria aqui.
-        # Por enquanto, retornamos apenas as colunas solicitadas no config.
+        # if len(self.features) == 1 and 'Close' in self.features:
+        #     logger.info("Modo Simplificado: Usando apenas coluna Close (Univariado)")
+        #     return df[['Close']]
         
         available_features = [col for col in self.features if col in df.columns]
         return df[available_features]

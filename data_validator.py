@@ -96,23 +96,23 @@ class DataQualityReport:
                 if count > 0:
                     lines.append(f"  ⚠️  {col}: {count} outliers")
         
-        lines.append("\n--- Integridade dos Dados ---")
-        if not self.integrity_issues:
-            lines.append("✅ Dados íntegros (High >= Low, etc.)")
-        else:
-            for issue in self.integrity_issues[:10]:
-                lines.append(f"  ❌ {issue}")
+        # lines.append("\n--- Integridade dos Dados ---")
+        # if not self.integrity_issues:
+        #     lines.append("✅ Dados íntegros (High >= Low, etc.)")
+        # else:
+        #     for issue in self.integrity_issues[:10]:
+        #         lines.append(f"  ❌ {issue}")
         
-        lines.append("\n" + "-" * 60)
-        status = "✅ VÁLIDO" if self.is_valid else "❌ INVÁLIDO"
-        lines.append(f"Status Final: {status}")
+        # lines.append("\n" + "-" * 60)
+        # status = "✅ VÁLIDO" if self.is_valid else "❌ INVÁLIDO"
+        # lines.append(f"Status Final: {status}")
         
-        if self.warnings:
-            lines.append(f"\n⚠️  {len(self.warnings)} avisos")
-        if self.errors:
-            lines.append(f"❌ {len(self.errors)} erros críticos")
+        # if self.warnings:
+        #     lines.append(f"\n⚠️  {len(self.warnings)} avisos")
+        # if self.errors:
+        #     lines.append(f"❌ {len(self.errors)} erros críticos")
         
-        lines.append("=" * 60)
+        # lines.append("=" * 60)
         
         return "\n".join(lines)
 

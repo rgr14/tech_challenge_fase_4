@@ -120,6 +120,51 @@ python train.py
 python train.py --ticker AAPL
 ```
 
+### 2.1 Grid Search (Opcional - Recomendado)
+
+O script suporta **Grid Search com TimeSeriesSplit** para encontrar os melhores hiperparametros:
+
+```bash
+# Executar Grid Search completo
+python train.py --grid-search --ticker NVDA
+
+# Apos o Grid Search, treinar com os melhores parametros
+python train.py --train-best --ticker NVDA
+```
+
+#### Parametros do Grid Search
+
+| Parametro | Valores Testados |
+|-----------|------------------|
+| sequence_length | 15, 30, 60 |
+| lstm_units | 50, 100, 150 |
+| dropout_rate | 0.1, 0.2, 0.3 |
+| batch_size | 16, 32, 64 |
+| epochs | 50, 100 |
+| learning_rate | 0.001, 0.0001 |
+| n_layers | 1, 2, 3 |
+
+#### Opcoes do Grid Search
+
+```bash
+# Personalizar numero de splits para TimeSeriesSplit
+python train.py --grid-search --splits 5
+
+# Personalizar data inicial
+python train.py --grid-search --start-date 2020-01-01
+```
+
+#### Arquivos Gerados
+
+Apos o Grid Search, os seguintes arquivos sao gerados na pasta `models/`:
+
+| Arquivo | Descricao |
+|---------|-----------|
+| `{ticker}_grid_search_results.csv` | Resultados de todas as combinacoes |
+| `{ticker}_best_params.json` | Melhores parametros encontrados |
+| `{ticker}_grid_search_analysis.png` | Graficos de analise |
+| `{ticker}_final_params.json` | Parametros + metricas do modelo final |
+
 ### 3. Fazer Previsoes (CLI)
 
 ```bash
