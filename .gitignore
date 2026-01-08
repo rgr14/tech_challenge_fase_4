@@ -11,12 +11,21 @@ __pycache__/
 # Jupyter / ML
 .ipynb_checkpoints/
 
-# Modelos e scalers (se forem grandes)
-scalers/
+# Artifacts (modelos e scalers treinados)
+artifacts/
 
-
-# Dados locais (se não quiser versionar)
+# Dados locais (descomente se nao quiser versionar)
 # data/
 
-# Variáveis de ambiente
+# Variaveis de ambiente
 .env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

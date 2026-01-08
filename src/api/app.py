@@ -1,5 +1,5 @@
 """
-API FastAPI para previsão de preços de ações com LSTM
+API FastAPI para previsao de precos de acoes com LSTM
 """
 from fastapi import FastAPI, HTTPException, Query, Path
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,8 +9,12 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 import logging
 import os
+import numpy as np
 
-from config import DEFAULT_TICKER, API_HOST, API_PORT, MODELS_DIR, SEQUENCE_LENGTH, FEATURES
+from src.config import DEFAULT_TICKER, API_HOST, API_PORT, MODELS_DIR, SEQUENCE_LENGTH, FEATURES
+from src.data.collector import StockDataCollector
+from src.data.preprocessor import StockDataPreprocessor
+from src.models.lstm import StockLSTMModel
 
 logging.basicConfig(
     level=logging.INFO,
@@ -19,27 +23,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ==========================
-# StockPredictor (inline)
-# ==========================
-# Mantemos o predictor dentro deste arquivo para evitar erros de import
-# quando o módulo `predict.py` não estiver presente/atualizado.
-import numpy as np  # noqa: F401
-
-from data_collector import StockDataCollector
-from preprocessor import StockDataPreprocessor
-from model import StockLSTMModel
-
-
 class StockPredictor:
-    """Classe para fazer previsões de ações."""
+    """Classe para fazer previsoes de acoes."""
 
     def __init__(self, ticker: str = DEFAULT_TICKER):
         self.ticker = ticker.upper()
         self.model = StockLSTMModel()
         self.preprocessor = StockDataPreprocessor(
             features=FEATURES,
-            validate_data=False,  # Desabilitado por padrão para previsões
+            validate_data=False,  # Desabilitado por padrao para previsoes
             auto_clean=False
         )
         self.collector = StockDataCollector(self.ticker)
@@ -54,12 +46,12 @@ class StockPredictor:
             logger.info(f"Modelo e scalers carregados para {self.ticker}")
         except FileNotFoundError as e:
             raise FileNotFoundError(
-                f"Modelo não encontrado para {self.ticker}. "
+                f"Modelo nao encontrado para {self.ticker}. "
                 "Execute train.py primeiro."
             ) from e
 
     def predict_next_day(self) -> dict:
-        """Prevê o preço de fechamento do próximo dia útil."""
+        """Preve o preco de fechamento do proximo dia util."""
         if not self._is_loaded:
             self.load()
 
@@ -71,8 +63,8 @@ class StockPredictor:
 
         if len(df_features) < SEQUENCE_LENGTH:
             raise ValueError(
-                f"Dados insuficientes. Necessário: {SEQUENCE_LENGTH}, "
-                f"Disponível: {len(df_features)}"
+                f"Dados insuficientes. Necessario: {SEQUENCE_LENGTH}, "
+                f"Disponivel: {len(df_features)}"
             )
 
         X = self.preprocessor.prepare_prediction_data(df_features)
@@ -99,7 +91,7 @@ class StockPredictor:
         }
 
     def predict_n_days(self, n_days: int = 5) -> list:
-        """Prevê os próximos N dias (previsão iterativa)."""
+        """Preve os proximos N dias (previsao iterativa)."""
         if not self._is_loaded:
             self.load()
 
@@ -125,7 +117,7 @@ class StockPredictor:
                 "predicted_close": round(float(pred), 2)
             })
 
-            # Atualizar para próxima previsão (heurística simples)
+            # Atualizar para proxima previsao (heuristica simples)
             new_row = current_features.iloc[-1].copy()
             new_row['Close'] = pred
             new_row['Open'] = current_features['Close'].iloc[-1]
@@ -142,14 +134,14 @@ class StockPredictor:
         return predictions
 
     def _get_next_business_day(self, date) -> datetime:
-        """Retorna o próximo dia útil."""
+        """Retorna o proximo dia util."""
         next_day = date + timedelta(days=1)
         while next_day.weekday() >= 5:
             next_day += timedelta(days=1)
         return next_day
 
     def get_model_info(self) -> dict:
-        """Retorna informações sobre o modelo carregado."""
+        """Retorna informacoes sobre o modelo carregado."""
         if not self._is_loaded:
             self.load()
 
@@ -163,20 +155,21 @@ class StockPredictor:
             "features_used": getattr(self.preprocessor, "fitted_features", FEATURES)
         }
 
+
 # Inicializar FastAPI
 app = FastAPI(
     title="Stock Price Predictor API",
     description="""
-    API para previsão de preços de ações usando redes neurais LSTM.
-    
+    API para previsao de precos de acoes usando redes neurais LSTM.
+
     ## Funcionalidades
-    
-    * **Previsão de próximo dia**: Prevê o preço de fechamento do próximo dia útil
-    * **Previsão de múltiplos dias**: Prevê os próximos N dias (com incerteza crescente)
-    
+
+    * **Previsao de proximo dia**: Preve o preco de fechamento do proximo dia util
+    * **Previsao de multiplos dias**: Preve os proximos N dias (com incerteza crescente)
+
     ## Disclaimer
-    
-    ⚠️ Esta API é apenas para fins educacionais e não constitui recomendação de investimento.
+
+    Esta API e apenas para fins educacionais e nao constitui recomendacao de investimento.
     """,
     version="1.0.0",
     docs_url="/docs",
@@ -198,16 +191,16 @@ predictors = {}
 
 # Modelos Pydantic
 class PredictionResponse(BaseModel):
-    """Resposta de previsão de um dia."""
-    ticker: str = Field(..., description="Símbolo da ação")
-    prediction_date: str = Field(..., description="Data da previsão")
-    last_close: float = Field(..., description="Último preço de fechamento")
-    last_close_date: str = Field(..., description="Data do último fechamento")
-    predicted_close: float = Field(..., description="Preço previsto")
-    expected_change: float = Field(..., description="Variação esperada em $")
-    expected_change_pct: float = Field(..., description="Variação esperada em %")
-    generated_at: str = Field(..., description="Timestamp da previsão")
-    
+    """Resposta de previsao de um dia."""
+    ticker: str = Field(..., description="Simbolo da acao")
+    prediction_date: str = Field(..., description="Data da previsao")
+    last_close: float = Field(..., description="Ultimo preco de fechamento")
+    last_close_date: str = Field(..., description="Data do ultimo fechamento")
+    predicted_close: float = Field(..., description="Preco previsto")
+    expected_change: float = Field(..., description="Variacao esperada em $")
+    expected_change_pct: float = Field(..., description="Variacao esperada em %")
+    generated_at: str = Field(..., description="Timestamp da previsao")
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -225,25 +218,25 @@ class PredictionResponse(BaseModel):
 
 
 class MultiDayPrediction(BaseModel):
-    """Previsão para um dia específico."""
-    day: int = Field(..., description="Número do dia (1 = amanhã)")
-    date: str = Field(..., description="Data da previsão")
-    predicted_close: float = Field(..., description="Preço previsto")
+    """Previsao para um dia especifico."""
+    day: int = Field(..., description="Numero do dia (1 = amanha)")
+    date: str = Field(..., description="Data da previsao")
+    predicted_close: float = Field(..., description="Preco previsto")
 
 
 class MultiDayPredictionResponse(BaseModel):
-    """Resposta de previsão de múltiplos dias."""
+    """Resposta de previsao de multiplos dias."""
     ticker: str
     predictions: List[MultiDayPrediction]
     warning: str = Field(
-        default="Previsões mais distantes têm maior incerteza",
+        default="Previsoes mais distantes tem maior incerteza",
         description="Aviso sobre incerteza"
     )
     generated_at: str
 
 
 class ModelInfoResponse(BaseModel):
-    """Informações do modelo."""
+    """Informacoes do modelo."""
     ticker: str
     stock_info: dict
     model_loaded: bool
@@ -265,9 +258,9 @@ class ErrorResponse(BaseModel):
 
 
 def get_predictor(ticker: str) -> StockPredictor:
-    """Obtém ou cria um predictor para o ticker."""
+    """Obtem ou cria um predictor para o ticker."""
     ticker = ticker.upper()
-    
+
     if ticker not in predictors:
         try:
             predictor = StockPredictor(ticker)
@@ -277,7 +270,7 @@ def get_predictor(ticker: str) -> StockPredictor:
         except FileNotFoundError:
             raise HTTPException(
                 status_code=404,
-                detail=f"Modelo não encontrado para {ticker}. Execute o treinamento primeiro."
+                detail=f"Modelo nao encontrado para {ticker}. Execute o treinamento primeiro."
             )
         except Exception as e:
             logger.error(f"Erro ao carregar predictor: {e}")
@@ -285,12 +278,12 @@ def get_predictor(ticker: str) -> StockPredictor:
                 status_code=500,
                 detail=f"Erro ao carregar modelo: {str(e)}"
             )
-    
+
     return predictors[ticker]
 
 
 def get_available_models() -> List[str]:
-    """Lista modelos disponíveis."""
+    """Lista modelos disponiveis."""
     models = []
     if MODELS_DIR.exists():
         for file in MODELS_DIR.glob("*_lstm_model.keras"):
@@ -302,11 +295,11 @@ def get_available_models() -> List[str]:
 # Endpoints
 @app.get(
     "/",
-    summary="Página inicial",
+    summary="Pagina inicial",
     response_class=JSONResponse
 )
 async def root():
-    """Página inicial da API."""
+    """Pagina inicial da API."""
     return {
         "name": "Stock Price Predictor API",
         "version": "1.0.0",
@@ -326,7 +319,7 @@ async def root():
     summary="Health check"
 )
 async def health_check():
-    """Verifica status da API e modelos disponíveis."""
+    """Verifica status da API e modelos disponiveis."""
     return HealthResponse(
         status="healthy",
         timestamp=datetime.now().isoformat(),
@@ -338,25 +331,25 @@ async def health_check():
     "/predict/{ticker}",
     response_model=PredictionResponse,
     responses={
-        404: {"model": ErrorResponse, "description": "Modelo não encontrado"},
+        404: {"model": ErrorResponse, "description": "Modelo nao encontrado"},
         500: {"model": ErrorResponse, "description": "Erro interno"}
     },
-    summary="Prever próximo dia"
+    summary="Prever proximo dia"
 )
 async def predict_next_day(
     ticker: str = Path(
-        ..., 
-        description="Símbolo da ação (ex: NVDA, AAPL, GOOGL)",
+        ...,
+        description="Simbolo da acao (ex: NVDA, AAPL, GOOGL)",
         min_length=1,
         max_length=10
     )
 ):
     """
-    Prevê o preço de fechamento do próximo dia útil.
-    
-    - **ticker**: Símbolo da ação (deve ter modelo treinado)
-    
-    Retorna previsão com variação esperada e direção.
+    Preve o preco de fechamento do proximo dia util.
+
+    - **ticker**: Simbolo da acao (deve ter modelo treinado)
+
+    Retorna previsao com variacao esperada e direcao.
     """
     try:
         predictor = get_predictor(ticker)
@@ -365,10 +358,10 @@ async def predict_next_day(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Erro na previsão: {e}")
+        logger.error(f"Erro na previsao: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Erro ao fazer previsão: {str(e)}"
+            detail=f"Erro ao fazer previsao: {str(e)}"
         )
 
 
@@ -376,38 +369,38 @@ async def predict_next_day(
     "/predict/{ticker}/days/{n_days}",
     response_model=MultiDayPredictionResponse,
     responses={
-        400: {"model": ErrorResponse, "description": "Parâmetros inválidos"},
-        404: {"model": ErrorResponse, "description": "Modelo não encontrado"},
+        400: {"model": ErrorResponse, "description": "Parametros invalidos"},
+        404: {"model": ErrorResponse, "description": "Modelo nao encontrado"},
         500: {"model": ErrorResponse, "description": "Erro interno"}
     },
-    summary="Prever múltiplos dias"
+    summary="Prever multiplos dias"
 )
 async def predict_multiple_days(
     ticker: str = Path(
-        ..., 
-        description="Símbolo da ação (ex: NVDA, AAPL, GOOGL)",
+        ...,
+        description="Simbolo da acao (ex: NVDA, AAPL, GOOGL)",
         min_length=1,
         max_length=10
     ),
     n_days: int = Path(
-        ..., 
+        ...,
         ge=1,
         le=30,
-        description="Número de dias para prever (1-30)"
+        description="Numero de dias para prever (1-30)"
     )
 ):
     """
-    Prevê os preços de fechamento dos próximos N dias úteis.
-    
-    - **ticker**: Símbolo da ação
-    - **n_days**: Número de dias (1-30)
-    
-    ⚠️ **Atenção**: Previsões mais distantes têm incerteza significativamente maior.
+    Preve os precos de fechamento dos proximos N dias uteis.
+
+    - **ticker**: Simbolo da acao
+    - **n_days**: Numero de dias (1-30)
+
+    **Atencao**: Previsoes mais distantes tem incerteza significativamente maior.
     """
     try:
         predictor = get_predictor(ticker)
         predictions = predictor.predict_n_days(n_days)
-        
+
         return MultiDayPredictionResponse(
             ticker=ticker.upper(),
             predictions=[MultiDayPrediction(**p) for p in predictions],
@@ -416,86 +409,43 @@ async def predict_multiple_days(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Erro na previsão multi-dia: {e}")
+        logger.error(f"Erro na previsao multi-dia: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Erro ao fazer previsão: {str(e)}"
+            detail=f"Erro ao fazer previsao: {str(e)}"
         )
-
-
-# @app.get(
-#     "/model/{ticker}",
-#     response_model=ModelInfoResponse,
-#     responses={
-#         404: {"model": ErrorResponse, "description": "Modelo não encontrado"}
-#     },
-#     summary="Informações do modelo"
-# )
-# async def get_model_info(ticker: str):
-#     """
-#     Retorna informações sobre o modelo treinado.
-    
-#     - **ticker**: Símbolo da ação
-    
-#     Inclui informações da ação, features usadas e configuração do modelo.
-#     """
-#     try:
-#         predictor = get_predictor(ticker)
-#         info = predictor.get_model_info()
-#         return ModelInfoResponse(**info)
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         logger.error(f"Erro ao obter info do modelo: {e}")
-#         raise HTTPException(
-#             status_code=500,
-#             detail=f"Erro ao obter informações: {str(e)}"
-#         )
-
-
-# @app.get(
-#     "/models",
-#     summary="Listar modelos disponíveis"
-# )
-# async def list_models():
-#     """Lista todos os modelos treinados disponíveis."""
-#     models = get_available_models()
-#     return {
-#         "available_models": models,
-#         "count": len(models)
-#     }
 
 
 # Eventos de startup/shutdown
 @app.on_event("startup")
 async def startup_event():
-    """Evento de inicialização."""
-    logger.info("🚀 Stock Predictor API iniciando...")
+    """Evento de inicializacao."""
+    logger.info("Stock Predictor API iniciando...")
     models = get_available_models()
-    logger.info(f"📊 Modelos disponíveis: {models}")
+    logger.info(f"Modelos disponiveis: {models}")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Evento de encerramento."""
-    logger.info("👋 Stock Predictor API encerrando...")
+    logger.info("Stock Predictor API encerrando...")
     predictors.clear()
 
 
 def main():
     """Inicia o servidor."""
     import uvicorn
-    
+
     print("\n" + "=" * 60)
-    print("🚀 STOCK PREDICTOR API")
+    print("STOCK PREDICTOR API")
     print("=" * 60)
-    print(f"\n📍 Servidor: http://{API_HOST}:{API_PORT}")
-    print(f"📚 Documentação: http://localhost:{API_PORT}/docs")
-    print(f"📖 ReDoc: http://localhost:{API_PORT}/redoc")
+    print(f"\nServidor: http://{API_HOST}:{API_PORT}")
+    print(f"Documentacao: http://localhost:{API_PORT}/docs")
+    print(f"ReDoc: http://localhost:{API_PORT}/redoc")
     print("\n" + "=" * 60)
-    
+
     uvicorn.run(
-        "api:app",
+        "src.api.app:app",
         host=API_HOST,
         port=API_PORT,
         reload=True,

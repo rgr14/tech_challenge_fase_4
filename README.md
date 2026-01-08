@@ -10,18 +10,31 @@ Prever o preco de fechamento de acoes utilizando dados historicos e Deep Learnin
 
 ```
 stock_lstm_predictor/
-├── config.py              # Configuracoes centralizadas (parametros do modelo vencedor)
-├── data_collector.py      # Coleta de dados via Yahoo Finance
-├── data_validator.py      # Validacao e limpeza de dados
-├── preprocessor.py        # Normalizacao e criacao de sequencias
-├── model.py               # Arquitetura do modelo LSTM
-├── train.py               # Pipeline de treinamento
-├── predict.py             # Script de previsao (CLI)
-├── api.py                 # FastAPI para deploy
-├── requirements.txt       # Dependencias
-├── data/                  # Dados historicos (gerado)
-├── models/                # Modelos treinados (gerado)
-└── scalers/               # Scalers salvos (gerado)
+├── main.py                    # Ponto de entrada principal (CLI)
+├── src/
+│   ├── __init__.py
+│   ├── config.py              # Configuracoes centralizadas
+│   ├── data/
+│   │   ├── __init__.py
+│   │   ├── collector.py       # Coleta de dados via Yahoo Finance
+│   │   ├── validator.py       # Validacao e limpeza de dados
+│   │   └── preprocessor.py    # Normalizacao e criacao de sequencias
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── lstm.py            # Arquitetura do modelo LSTM
+│   ├── api/
+│   │   ├── __init__.py
+│   │   └── app.py             # FastAPI para deploy
+│   └── cli/
+│       ├── __init__.py
+│       ├── train.py           # Pipeline de treinamento
+│       └── predict.py         # Script de previsao
+├── data/                      # Dados historicos (gerado)
+├── artifacts/
+│   ├── models/                # Modelos treinados (gerado)
+│   └── scalers/               # Scalers salvos (gerado)
+├── requirements.txt           # Dependencias
+└── README.md
 ```
 
 ## Pipeline de Dados
@@ -29,14 +42,14 @@ stock_lstm_predictor/
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    1. COLETA DE DADOS                       │
-│                    (data_collector.py)                      │
+│                  (src/data/collector.py)                    │
 │         Yahoo Finance API → Dados OHLCV historicos          │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                 2. VALIDACAO DE DADOS                       │
-│                   (data_validator.py)                       │
+│                 (src/data/validator.py)                     │
 │  • Dados faltantes e duplicatas                             │
 │  • Gaps temporais e outliers                                │
 │  • Integridade dos dados (High>=Low, etc)                   │
@@ -45,7 +58,7 @@ stock_lstm_predictor/
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                 3. PRE-PROCESSAMENTO                        │
-│                    (preprocessor.py)                        │
+│                (src/data/preprocessor.py)                   │
 │  • Extracao da feature Close (modo univariado)              │
 │  • Normalizacao MinMaxScaler (0-1)                          │
 │  • Criacao de sequencias (30 dias → 1 previsao)             │
@@ -54,7 +67,7 @@ stock_lstm_predictor/
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    4. MODELO LSTM                           │
-│                      (model.py)                             │
+│                   (src/models/lstm.py)                      │
 │             2 camadas LSTM + Dense (MSE Loss)               │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -114,10 +127,10 @@ pip install -r requirements.txt
 
 ```bash
 # Treinar modelo para NVIDIA (padrao)
-python train.py
+python main.py train
 
 # Treinar para outra acao
-python train.py --ticker AAPL
+python main.py train --ticker AAPL
 ```
 
 ### 2.1 Grid Search (Opcional - Recomendado)
@@ -126,10 +139,10 @@ O script suporta **Grid Search com TimeSeriesSplit** para encontrar os melhores 
 
 ```bash
 # Executar Grid Search completo
-python train.py --grid-search --ticker NVDA
+python main.py train --grid-search --ticker NVDA
 
 # Apos o Grid Search, treinar com os melhores parametros
-python train.py --train-best --ticker NVDA
+python main.py train --train-best --ticker NVDA
 ```
 
 #### Parametros do Grid Search
@@ -148,15 +161,15 @@ python train.py --train-best --ticker NVDA
 
 ```bash
 # Personalizar numero de splits para TimeSeriesSplit
-python train.py --grid-search --splits 5
+python main.py train --grid-search --splits 5
 
 # Personalizar data inicial
-python train.py --grid-search --start-date 2020-01-01
+python main.py train --grid-search --start-date 2020-01-01
 ```
 
 #### Arquivos Gerados
 
-Apos o Grid Search, os seguintes arquivos sao gerados na pasta `models/`:
+Apos o Grid Search, os seguintes arquivos sao gerados na pasta `artifacts/models/`:
 
 | Arquivo | Descricao |
 |---------|-----------|
@@ -169,7 +182,10 @@ Apos o Grid Search, os seguintes arquivos sao gerados na pasta `models/`:
 
 ```bash
 # Prever proximo dia
-python predict.py
+python main.py predict
+
+# Prever para outra acao
+python main.py predict --ticker AAPL
 ```
 
 O script exibe:
@@ -181,10 +197,26 @@ O script exibe:
 ### 4. Iniciar API
 
 ```bash
-python api.py
+python main.py api
 ```
 
 A API estara disponivel em `http://localhost:8000`
+
+## Comandos Disponiveis
+
+```bash
+# Ver ajuda geral
+python main.py --help
+
+# Ver ajuda do comando train
+python main.py train --help
+
+# Ver ajuda do comando predict
+python main.py predict --help
+
+# Ver ajuda do comando api
+python main.py api --help
+```
 
 ## API Endpoints
 
@@ -246,12 +278,12 @@ curl http://localhost:8000/predict/NVDA/days/5
 
 ## Configuracoes
 
-Edite `config.py` para personalizar:
+Edite `src/config.py` para personalizar:
 
 ```python
 # Dados
 DEFAULT_TICKER = "NVDA"
-DEFAULT_START_DATE = "2019-01-01"
+DEFAULT_START_DATE = "2022-01-01"
 SEQUENCE_LENGTH = 30  # Dias de historico
 
 # Modelo
@@ -271,7 +303,7 @@ TARGET = "Close"
 
 ## Validacao de Dados
 
-O modulo `data_validator.py` garante a qualidade dos dados antes do treinamento:
+O modulo `src/data/validator.py` garante a qualidade dos dados antes do treinamento:
 
 ### Verificacoes Realizadas
 
@@ -287,25 +319,20 @@ O modulo `data_validator.py` garante a qualidade dos dados antes do treinamento:
 
 ## Analise Exploratoria (EDA)
 
-O modulo `data_validator.py` tambem oferece funcoes para analise exploratoria de dados com foco em deteccao de outliers.
+O modulo `src/data/validator.py` tambem oferece funcoes para analise exploratoria de dados com foco em deteccao de outliers.
 
 ### Gerando Boxplots
 
-**Via linha de comando:**
-```bash
-python data_validator.py --ticker NVDA --boxplot
-```
-
 **Via Python:**
 ```python
-from data_collector import StockDataCollector
-from data_validator import generate_boxplots, print_outlier_summary
+from src.data.collector import StockDataCollector
+from src.data.validator import generate_boxplots, print_outlier_summary
 
 # Coletar dados
 collector = StockDataCollector("NVDA")
 df = collector.fetch_historical_data()
 
-# Gerar boxplots (salva em models/NVDA_boxplots_eda.png)
+# Gerar boxplots (salva em artifacts/models/NVDA_boxplots_eda.png)
 generate_boxplots(df, ticker="NVDA")
 
 # Imprimir resumo de outliers no terminal
@@ -316,7 +343,7 @@ print_outlier_summary(df, ticker="NVDA")
 
 | Arquivo | Descricao |
 |---------|-----------|
-| `models/{ticker}_boxplots_eda.png` | Boxplots de todas as variaveis quantitativas |
+| `artifacts/models/{ticker}_boxplots_eda.png` | Boxplots de todas as variaveis quantitativas |
 
 ### Variaveis Analisadas
 
@@ -329,6 +356,30 @@ print_outlier_summary(df, ticker="NVDA")
 | Volume | Volume de negociacao |
 
 O grafico separa as variaveis de preco (escala em USD) do Volume (escala em milhoes) para melhor visualizacao. Cada boxplot exibe a contagem de outliers detectados via metodo IQR (1.5 * IQR).
+
+## Estrutura de Imports
+
+Para usar os modulos em seu codigo:
+
+```python
+# Configuracoes
+from src.config import DEFAULT_TICKER, MODELS_DIR, FEATURES
+
+# Coleta de dados
+from src.data.collector import StockDataCollector
+
+# Validacao
+from src.data.validator import DataValidator, validate_and_clean
+
+# Pre-processamento
+from src.data.preprocessor import StockDataPreprocessor
+
+# Modelo
+from src.models.lstm import StockLSTMModel, calculate_metrics
+
+# API
+from src.api.app import app
+```
 
 ## Tecnologias
 

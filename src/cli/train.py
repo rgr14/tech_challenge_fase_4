@@ -15,14 +15,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.model_selection import TimeSeriesSplit
 
-from config import (
+from src.config import (
     DEFAULT_TICKER, DEFAULT_START_DATE, EPOCHS, BATCH_SIZE,
     MODELS_DIR, DATA_DIR, FEATURES, TRAIN_TEST_SPLIT,
     SEQUENCE_LENGTH, LSTM_UNITS_1, DROPOUT_RATE
 )
-from data_collector import StockDataCollector
-from preprocessor import StockDataPreprocessor
-from model import StockLSTMModel, calculate_metrics
+from src.data.collector import StockDataCollector
+from src.data.preprocessor import StockDataPreprocessor
+from src.data.validator import validate_and_clean
+from src.models.lstm import StockLSTMModel, calculate_metrics
 
 logging.basicConfig(
     level=logging.INFO,
@@ -151,7 +152,6 @@ def run_grid_search(
     logger.info("\n[2/4] Preparando e limpando dados (uma unica vez)...")
 
     # Fazer limpeza uma vez so
-    from data_validator import validate_and_clean
     df_clean, report = validate_and_clean(df, ticker=ticker, auto_clean=True, verbose=True)
     logger.info(f"Dados limpos: {len(df_clean)} registros (removidos: {len(df) - len(df_clean)})")
 
@@ -571,6 +571,7 @@ def _print_metrics(label: str, metrics: dict):
     logger.info(f"  MAPE: {metrics['mape']:.2f}%")
     logger.info(f"  R2: {metrics['r2']:.4f}")
 
+
 def _save_training_plots(history, y_real, y_pred, ticker):
     """Gera graficos de treinamento."""
     fig, axes = plt.subplots(1, 2, figsize=(15, 6))
@@ -725,7 +726,7 @@ def main():
         logger.info("\n" + "=" * 70)
         logger.info("Grid Search concluido!")
         logger.info(f"Para treinar o modelo final, execute:")
-        logger.info(f"  python train.py --ticker {args.ticker} --train-best")
+        logger.info(f"  python -m src.cli.train --ticker {args.ticker} --train-best")
         logger.info("=" * 70)
 
     elif args.train_best:
