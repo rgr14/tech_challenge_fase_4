@@ -5,11 +5,13 @@ Responsável por garantir a qualidade dos dados antes do treinamento do LSTM.
 """
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from typing import Tuple, Dict, List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import logging
 import warnings
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -55,25 +57,25 @@ class DataQualityReport:
             "=" * 60,
             f"\n📅 Período: {self.date_range[0]} até {self.date_range[1]}",
             f"📈 Total de registros: {self.total_records:,}",
-            "\n--- Dados Faltantes ---"
         ]
         
-        if self.total_missing == 0:
-            lines.append("✅ Nenhum dado faltante encontrado")
-        else:
-            for col, count in self.missing_values.items():
-                if count > 0:
-                    pct = self.missing_percentage[col]
-                    lines.append(f"  ⚠️  {col}: {count} ({pct:.2f}%)")
+        # "\n--- Dados Faltantes ---"
+        # if self.total_missing == 0:
+        #     lines.append("✅ Nenhum dado faltante encontrado")
+        # else:
+        #     for col, count in self.missing_values.items():
+        #         if count > 0:
+        #             pct = self.missing_percentage[col]
+        #             lines.append(f"  ⚠️  {col}: {count} ({pct:.2f}%)")
         
-        lines.append("\n--- Duplicatas ---")
-        if self.duplicate_dates == 0 and self.duplicate_rows == 0:
-            lines.append("✅ Nenhuma duplicata encontrada")
-        else:
-            if self.duplicate_dates > 0:
-                lines.append(f"  ⚠️  Datas duplicadas: {self.duplicate_dates}")
-            if self.duplicate_rows > 0:
-                lines.append(f"  ⚠️  Linhas duplicadas: {self.duplicate_rows}")
+        # lines.append("\n--- Duplicatas ---")
+        # if self.duplicate_dates == 0 and self.duplicate_rows == 0:
+        #     lines.append("✅ Nenhuma duplicata encontrada")
+        # else:
+        #     if self.duplicate_dates > 0:
+        #         lines.append(f"  ⚠️  Datas duplicadas: {self.duplicate_dates}")
+        #     if self.duplicate_rows > 0:
+        #         lines.append(f"  ⚠️  Linhas duplicadas: {self.duplicate_rows}")
         
         # lines.append("\n--- Gaps Temporais ---")
         # if self.total_gaps == 0:
@@ -179,7 +181,7 @@ class DataValidator:
         # Determinar status final
         self._determine_final_status()
         
-        logger.info(f"Validação concluída. Status: {'VÁLIDO' if self.report.is_valid else 'INVÁLIDO'}")
+        # logger.info(f"Validação concluída. Status: {'VÁLIDO' if self.report.is_valid else 'INVÁLIDO'}")
         
         return self.report
     
@@ -644,7 +646,7 @@ def validate_and_clean(
     df: pd.DataFrame,
     ticker: str = "UNKNOWN",
     auto_clean: bool = True,
-    verbose: bool = True
+    verbose: bool = False
 ) -> Tuple[pd.DataFrame, DataQualityReport]:
     """
     Função de conveniência para validar e limpar dados.
@@ -670,16 +672,16 @@ def validate_and_clean(
         cleaner = DataCleaner()
         df_clean = cleaner.clean(df)
         
-        if verbose:
-            print("\n" + cleaner.get_cleaning_report())
+        # if verbose:
+        #     print("\n" + cleaner.get_cleaning_report())
         
         # Re-validar
         report_after = validator.validate(df_clean, ticker)
         
-        if verbose:
-            print("\n📊 Após limpeza:")
-            print(f"   Registros: {len(df)} → {len(df_clean)}")
-            print(f"   Status: {'✅ VÁLIDO' if report_after.is_valid else '❌ INVÁLIDO'}")
+        # if verbose:
+        #     print("\n📊 Após limpeza:")
+        #     print(f"   Registros: {len(df)} → {len(df_clean)}")
+        #     print(f"   Status: {'✅ VÁLIDO' if report_after.is_valid else '❌ INVÁLIDO'}")
         
         return df_clean, report_after
     
@@ -687,36 +689,230 @@ def validate_and_clean(
 
 
 # =============================================================================
+# ANALISE EXPLORATORIA - BOXPLOTS
+# =============================================================================
+def generate_boxplots(
+    df: pd.DataFrame,
+    ticker: str = "STOCK",
+    output_dir: Optional[Path] = None,
+    show_plot: bool = False
+) -> str:
+    """
+    Gera boxplots para todas as variaveis quantitativas do DataFrame.
+
+    Args:
+        df: DataFrame com dados OHLCV do yfinance
+        ticker: Simbolo da acao para titulo
+        output_dir: Diretorio para salvar o grafico (default: ./models)
+        show_plot: Se deve exibir o grafico interativamente
+
+    Returns:
+        Caminho do arquivo salvo
+    """
+    # Selecionar apenas colunas numericas
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+
+    if not numeric_cols:
+        raise ValueError("Nenhuma coluna numerica encontrada no DataFrame")
+
+    # Separar Volume das outras colunas (escala diferente)
+    price_cols = [col for col in numeric_cols if col != 'Volume']
+    has_volume = 'Volume' in numeric_cols
+
+    # Configurar layout
+    if has_volume:
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+        ax_prices = axes[0]
+        ax_volume = axes[1]
+    else:
+        fig, ax_prices = plt.subplots(1, 1, figsize=(10, 6))
+
+    # Boxplot das variaveis de preco
+    if price_cols:
+        bp1 = ax_prices.boxplot(
+            [df[col].dropna() for col in price_cols],
+            labels=price_cols,
+            patch_artist=True,
+            notch=True
+        )
+
+        # Cores para os boxes
+        colors = plt.cm.Blues(np.linspace(0.4, 0.8, len(price_cols)))
+        for patch, color in zip(bp1['boxes'], colors):
+            patch.set_facecolor(color)
+
+        ax_prices.set_title(f'Boxplot - Variaveis de Preco ({ticker})', fontsize=12, fontweight='bold')
+        ax_prices.set_ylabel('Valor (USD)', fontsize=10)
+        ax_prices.grid(True, alpha=0.3, axis='y')
+
+        # Adicionar estatisticas
+        stats_text = []
+        for col in price_cols:
+            data = df[col].dropna()
+            Q1 = data.quantile(0.25)
+            Q3 = data.quantile(0.75)
+            IQR = Q3 - Q1
+            outliers = ((data < Q1 - 1.5 * IQR) | (data > Q3 + 1.5 * IQR)).sum()
+            stats_text.append(f"{col}: {outliers} outliers")
+
+        ax_prices.text(
+            0.02, 0.98, '\n'.join(stats_text),
+            transform=ax_prices.transAxes,
+            fontsize=8,
+            verticalalignment='top',
+            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        )
+
+    # Boxplot do Volume (escala separada)
+    if has_volume:
+        bp2 = ax_volume.boxplot(
+            [df['Volume'].dropna()],
+            labels=['Volume'],
+            patch_artist=True,
+            notch=True
+        )
+        bp2['boxes'][0].set_facecolor(plt.cm.Greens(0.6))
+
+        ax_volume.set_title(f'Boxplot - Volume ({ticker})', fontsize=12, fontweight='bold')
+        ax_volume.set_ylabel('Volume', fontsize=10)
+        ax_volume.grid(True, alpha=0.3, axis='y')
+
+        # Formatar eixo Y para milhoes
+        ax_volume.yaxis.set_major_formatter(
+            plt.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M')
+        )
+
+        # Estatisticas do Volume
+        vol_data = df['Volume'].dropna()
+        Q1 = vol_data.quantile(0.25)
+        Q3 = vol_data.quantile(0.75)
+        IQR = Q3 - Q1
+        outliers = ((vol_data < Q1 - 1.5 * IQR) | (vol_data > Q3 + 1.5 * IQR)).sum()
+
+        ax_volume.text(
+            0.02, 0.98, f"Volume: {outliers} outliers",
+            transform=ax_volume.transAxes,
+            fontsize=8,
+            verticalalignment='top',
+            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        )
+
+    # Titulo geral
+    fig.suptitle(
+        f'Analise Exploratoria - Deteccao de Outliers ({ticker})\n'
+        f'Periodo: {df.index.min().strftime("%Y-%m-%d")} a {df.index.max().strftime("%Y-%m-%d")} | '
+        f'N = {len(df)} registros',
+        fontsize=11,
+        y=1.02
+    )
+
+    plt.tight_layout()
+
+    # Salvar grafico
+    if output_dir is None:
+        output_dir = Path(__file__).parent / "models"
+    output_dir = Path(output_dir)
+    output_dir.mkdir(exist_ok=True)
+
+    output_path = output_dir / f"{ticker}_boxplots_eda.png"
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    logger.info(f"Boxplots salvos em: {output_path}")
+
+    if show_plot:
+        plt.show()
+    else:
+        plt.close()
+
+    return str(output_path)
+
+
+def print_outlier_summary(df: pd.DataFrame, ticker: str = "STOCK") -> None:
+    """
+    Imprime resumo de outliers para cada variavel quantitativa.
+
+    Args:
+        df: DataFrame com dados OHLCV
+        ticker: Simbolo da acao
+    """
+    print("\n" + "=" * 60)
+    print(f"RESUMO DE OUTLIERS - {ticker}")
+    print("=" * 60)
+
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+
+    for col in numeric_cols:
+        data = df[col].dropna()
+        Q1 = data.quantile(0.25)
+        Q3 = data.quantile(0.75)
+        IQR = Q3 - Q1
+
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
+
+        outliers_low = data[data < lower_bound]
+        outliers_high = data[data > upper_bound]
+        total_outliers = len(outliers_low) + len(outliers_high)
+        pct = (total_outliers / len(data)) * 100
+
+        print(f"\n{col}:")
+        print(f"  Min: {data.min():.2f} | Max: {data.max():.2f}")
+        print(f"  Q1: {Q1:.2f} | Mediana: {data.median():.2f} | Q3: {Q3:.2f}")
+        print(f"  IQR: {IQR:.2f}")
+        print(f"  Limites: [{lower_bound:.2f}, {upper_bound:.2f}]")
+        print(f"  Outliers: {total_outliers} ({pct:.2f}%)")
+        if len(outliers_low) > 0:
+            print(f"    - Abaixo: {len(outliers_low)}")
+        if len(outliers_high) > 0:
+            print(f"    - Acima: {len(outliers_high)}")
+
+    print("\n" + "=" * 60)
+
+
+# =============================================================================
 # EXEMPLO DE USO
 # =============================================================================
 def main():
-    """Demonstração do módulo de validação."""
-    
-    # Criar dados de exemplo com problemas
-    dates = pd.date_range('2024-01-01', periods=100, freq='B')
-    
-    np.random.seed(42)
-    df = pd.DataFrame({
-        'Open': 100 + np.random.randn(100).cumsum(),
-        'High': 102 + np.random.randn(100).cumsum(),
-        'Low': 98 + np.random.randn(100).cumsum(),
-        'Close': 100 + np.random.randn(100).cumsum(),
-        'Volume': np.random.randint(1000000, 10000000, 100)
-    }, index=dates)
-    
-    # Introduzir problemas
-    df.iloc[10, 0] = np.nan  # Missing value
-    df.iloc[20, 1] = 50      # High < Low (problema de integridade)
-    df.iloc[30, 4] = -1000   # Volume negativo
-    df.iloc[50, 3] = 500     # Outlier
-    
-    print("Dados de exemplo criados com problemas propositais")
+    """Demonstracao do modulo de validacao e analise exploratoria."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Validacao e EDA de dados financeiros')
+    parser.add_argument('--ticker', type=str, default='NVDA', help='Simbolo da acao')
+    parser.add_argument('--boxplot', action='store_true', help='Gerar boxplots')
+    parser.add_argument('--show', action='store_true', help='Exibir graficos')
+    args = parser.parse_args()
+
+    # Tentar carregar dados reais
+    data_path = Path(__file__).parent / "data" / f"{args.ticker}_historical.csv"
+
+    if data_path.exists():
+        print(f"Carregando dados de {data_path}")
+        df = pd.read_csv(data_path, index_col=0, parse_dates=True)
+    else:
+        print(f"Arquivo {data_path} nao encontrado. Criando dados de exemplo...")
+        dates = pd.date_range('2024-01-01', periods=100, freq='B')
+        np.random.seed(42)
+        df = pd.DataFrame({
+            'Open': 100 + np.random.randn(100).cumsum(),
+            'High': 102 + np.random.randn(100).cumsum(),
+            'Low': 98 + np.random.randn(100).cumsum(),
+            'Close': 100 + np.random.randn(100).cumsum(),
+            'Volume': np.random.randint(1000000, 10000000, 100)
+        }, index=dates)
+
     print(f"Shape: {df.shape}")
-    
+
     # Validar e limpar
-    df_clean, report = validate_and_clean(df, ticker="TEST", verbose=True)
-    
+    df_clean, report = validate_and_clean(df, ticker=args.ticker, verbose=True)
     print(f"\nDados finais: {df_clean.shape}")
+
+    # Gerar boxplots
+    if args.boxplot:
+        print("\nGerando boxplots...")
+        output_path = generate_boxplots(df_clean, ticker=args.ticker, show_plot=args.show)
+        print(f"Boxplots salvos em: {output_path}")
+
+        # Imprimir resumo de outliers
+        print_outlier_summary(df_clean, ticker=args.ticker)
 
 
 if __name__ == "__main__":

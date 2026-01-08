@@ -6,6 +6,7 @@ Suporta treinamento simples e Grid Search com TimeSeriesSplit.
 import argparse
 import json
 import logging
+import random
 from datetime import datetime
 from itertools import product
 from pathlib import Path
@@ -44,6 +45,9 @@ GRID_SEARCH_PARAMS = {
 
 # Numero de splits para TimeSeriesSplit
 N_SPLITS = 3
+
+# Limite maximo de combinacoes (para evitar estouro de memoria)
+MAX_COMBINATIONS = 100
 
 
 def create_model_with_params(
@@ -151,6 +155,14 @@ def run_grid_search(
     param_values = list(GRID_SEARCH_PARAMS.values())
     all_combinations = list(product(*param_values))
     total_combinations = len(all_combinations)
+
+    # Limitar combinacoes se necessario (Random Search)
+    if total_combinations > MAX_COMBINATIONS:
+        logger.info(f"Total de combinacoes possiveis: {total_combinations}")
+        logger.info(f"Limitando para {MAX_COMBINATIONS} combinacoes (Random Search)")
+        random.seed(42)  # Reproducibilidade
+        all_combinations = random.sample(all_combinations, MAX_COMBINATIONS)
+        total_combinations = len(all_combinations)
 
     logger.info(f"Total de combinacoes a testar: {total_combinations}")
     logger.info(f"Folds por combinacao: {n_splits}")

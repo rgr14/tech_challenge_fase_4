@@ -15,7 +15,7 @@ SCALERS_DIR.mkdir(exist_ok=True)
 
 # Configurações de dados
 DEFAULT_TICKER = "NVDA"
-DEFAULT_START_DATE = "2019-01-01" # O original usava 2019, não 2020
+DEFAULT_START_DATE = "2022-01-01"
 DEFAULT_END_DATE = None
 
 # --- PARÂMETROS DO GRID SEARCH VENCEDOR ---

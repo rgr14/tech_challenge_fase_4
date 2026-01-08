@@ -285,6 +285,51 @@ O modulo `data_validator.py` garante a qualidade dos dados antes do treinamento:
 | Valores Infinitos | Detecta `inf` e `-inf` |
 | Variacoes Extremas | Alerta variacoes > 50% em um dia |
 
+## Analise Exploratoria (EDA)
+
+O modulo `data_validator.py` tambem oferece funcoes para analise exploratoria de dados com foco em deteccao de outliers.
+
+### Gerando Boxplots
+
+**Via linha de comando:**
+```bash
+python data_validator.py --ticker NVDA --boxplot
+```
+
+**Via Python:**
+```python
+from data_collector import StockDataCollector
+from data_validator import generate_boxplots, print_outlier_summary
+
+# Coletar dados
+collector = StockDataCollector("NVDA")
+df = collector.fetch_historical_data()
+
+# Gerar boxplots (salva em models/NVDA_boxplots_eda.png)
+generate_boxplots(df, ticker="NVDA")
+
+# Imprimir resumo de outliers no terminal
+print_outlier_summary(df, ticker="NVDA")
+```
+
+### Arquivos Gerados
+
+| Arquivo | Descricao |
+|---------|-----------|
+| `models/{ticker}_boxplots_eda.png` | Boxplots de todas as variaveis quantitativas |
+
+### Variaveis Analisadas
+
+| Variavel | Descricao |
+|----------|-----------|
+| Open | Preco de abertura |
+| High | Preco maximo do dia |
+| Low | Preco minimo do dia |
+| Close | Preco de fechamento |
+| Volume | Volume de negociacao |
+
+O grafico separa as variaveis de preco (escala em USD) do Volume (escala em milhoes) para melhor visualizacao. Cada boxplot exibe a contagem de outliers detectados via metodo IQR (1.5 * IQR).
+
 ## Tecnologias
 
 | Tecnologia | Uso |
