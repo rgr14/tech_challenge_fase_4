@@ -1,0 +1,17 @@
+{
+  "sequence_length": 15,
+  "lstm_units": 150,
+  "dropout_rate": 0.1,
+  "batch_size": 16,
+  "epochs": 100,
+  "learning_rate": 0.001,
+  "n_layers": 2,
+  "mean_val_loss": 0.00036038345327445615,
+  "std_val_loss": 0.00022248086405454677,
+  "fold_scores": [
+    7.074624591041356e-05,
+    0.0003987627860624343,
+    0.0006116413278505206
+  ],
+  "n_samples": 992
+}
