@@ -147,8 +147,13 @@ def run_grid_search(
 
     logger.info(f"Coletados {len(df)} registros")
 
-    # 2. Preparar dados base (sem sequencias ainda - faremos por config)
-    logger.info("\n[2/4] Preparando dados...")
+    # 2. Preparar dados base - LIMPEZA UNICA antes do loop
+    logger.info("\n[2/4] Preparando e limpando dados (uma unica vez)...")
+
+    # Fazer limpeza uma vez so
+    from data_validator import validate_and_clean
+    df_clean, report = validate_and_clean(df, ticker=ticker, auto_clean=True, verbose=True)
+    logger.info(f"Dados limpos: {len(df_clean)} registros (removidos: {len(df) - len(df_clean)})")
 
     # Calcular total de combinacoes
     param_keys = list(GRID_SEARCH_PARAMS.keys())
@@ -182,15 +187,17 @@ def run_grid_search(
 
         try:
             # Preprocessar com sequence_length especifico
+            # validate_data=False pois ja limpamos os dados antes do loop
             preprocessor = StockDataPreprocessor(
                 sequence_length=params["sequence_length"],
                 features=FEATURES,
-                validate_data=True,
-                auto_clean=True,
+                validate_data=False,
+                auto_clean=False,
                 scaler_type="minmax"
             )
 
-            df_features = preprocessor.prepare_features(df.copy(), ticker=ticker)
+            # Usar dados ja limpos (df_clean)
+            df_features = df_clean[FEATURES].copy()
             preprocessor.fit_scalers(df_features)
             features_scaled, target_scaled = preprocessor.transform(df_features)
             X, y = preprocessor.create_sequences(features_scaled, target_scaled)
