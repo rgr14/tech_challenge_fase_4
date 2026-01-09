@@ -107,7 +107,7 @@ Dense (1 unit, Linear) → Preco previsto
 
 ### Modo de Operacao
 
-O modelo opera em **modo univariado**, utilizando apenas o preco de fechamento (`Close`) como feature. Isso replica o comportamento do modelo original que obteve os melhores resultados.
+O modelo opera em **modo univariado**, utilizando apenas o preco de fechamento (`Close`) como feature.
 
 ## Quick Start
 
