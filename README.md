@@ -51,7 +51,7 @@ stock_lstm_predictor/
 │                 2. VALIDACAO DE DADOS                       │
 │                 (src/data/validator.py)                     │
 │  • Dados faltantes e duplicatas                             │
-│  • Gaps temporais e outliers                                │
+│  • Outliers                                │
 │  • Integridade dos dados (High>=Low, etc)                   │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -107,7 +107,7 @@ Dense (1 unit, Linear) → Preco previsto
 
 ### Modo de Operacao
 
-O modelo opera em **modo univariado**, utilizando apenas o preco de fechamento (`Close`) como feature. Isso replica o comportamento do modelo original que obteve os melhores resultados.
+O modelo opera em **modo univariado**, utilizando apenas o preco de fechamento (`Close`) como feature.
 
 ## Quick Start
 
@@ -273,8 +273,7 @@ curl http://localhost:8000/predict/NVDA/days/5
 | MAE | Mean Absolute Error (erro medio em $) |
 | RMSE | Root Mean Square Error |
 | MAPE | Mean Absolute Percentage Error |
-| R² | Coeficiente de determinacao |
-| Direction Accuracy | Precisao na direcao do movimento |
+| R² | Coeficiente de determinação |
 
 ## Configuracoes
 
@@ -311,7 +310,6 @@ O modulo `src/data/validator.py` garante a qualidade dos dados antes do treiname
 |-------------|-----------|
 | Dados Faltantes | Conta NaN por coluna, calcula percentual |
 | Duplicatas | Detecta datas e linhas duplicadas |
-| Gaps Temporais | Identifica dias de negociacao faltando |
 | Outliers | Detecta via IQR, Z-Score ou MAD |
 | Integridade | Valida High >= Low, precos > 0, Volume >= 0 |
 | Valores Infinitos | Detecta `inf` e `-inf` |
@@ -322,6 +320,18 @@ O modulo `src/data/validator.py` garante a qualidade dos dados antes do treiname
 O modulo `src/data/validator.py` tambem oferece funcoes para analise exploratoria de dados com foco em deteccao de outliers.
 
 ### Gerando Boxplots
+
+**Via linha de comando:**
+```bash
+# Gerar boxplots para NVDA (salva em artifacts/models/)
+python -m src.data.validator --ticker NVDA --boxplot
+
+# Gerar e exibir na tela
+python -m src.data.validator --ticker NVDA --boxplot --show
+
+# Para outra acao
+python -m src.data.validator --ticker AAPL --boxplot --show
+```
 
 **Via Python:**
 ```python
