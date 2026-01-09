@@ -303,11 +303,11 @@ async def root():
     return {
         "name": "Stock Price Predictor API",
         "version": "1.0.0",
+        "ticker": DEFAULT_TICKER,
         "docs": "/docs",
         "endpoints": {
-            "predict": "/predict/{ticker}",
-            "predict_days": "/predict/{ticker}/days/{n_days}",
-            "model_info": "/model/{ticker}",
+            "predict": "/predict",
+            "predict_days": "/predict/days/{n_days}",
             "health": "/health"
         }
     }
@@ -328,7 +328,7 @@ async def health_check():
 
 
 @app.get(
-    "/predict/{ticker}",
+    "/predict",
     response_model=PredictionResponse,
     responses={
         404: {"model": ErrorResponse, "description": "Modelo nao encontrado"},
@@ -336,23 +336,14 @@ async def health_check():
     },
     summary="Prever proximo dia"
 )
-async def predict_next_day(
-    ticker: str = Path(
-        ...,
-        description="Simbolo da acao (ex: NVDA, AAPL, GOOGL)",
-        min_length=1,
-        max_length=10
-    )
-):
+async def predict_next_day():
     """
-    Preve o preco de fechamento do proximo dia util.
+    Preve o preco de fechamento do proximo dia util para NVDA.
 
-    - **ticker**: Simbolo da acao (deve ter modelo treinado)
-
-    Retorna previsao com variacao esperada e direcao.
+    Retorna previsao com variacao esperada.
     """
     try:
-        predictor = get_predictor(ticker)
+        predictor = get_predictor(DEFAULT_TICKER)
         result = predictor.predict_next_day()
         return PredictionResponse(**result)
     except HTTPException:
@@ -366,7 +357,7 @@ async def predict_next_day(
 
 
 @app.get(
-    "/predict/{ticker}/days/{n_days}",
+    "/predict/days/{n_days}",
     response_model=MultiDayPredictionResponse,
     responses={
         400: {"model": ErrorResponse, "description": "Parametros invalidos"},
@@ -376,12 +367,6 @@ async def predict_next_day(
     summary="Prever multiplos dias"
 )
 async def predict_multiple_days(
-    ticker: str = Path(
-        ...,
-        description="Simbolo da acao (ex: NVDA, AAPL, GOOGL)",
-        min_length=1,
-        max_length=10
-    ),
     n_days: int = Path(
         ...,
         ge=1,
@@ -390,19 +375,18 @@ async def predict_multiple_days(
     )
 ):
     """
-    Preve os precos de fechamento dos proximos N dias uteis.
+    Preve os precos de fechamento dos proximos N dias uteis para NVDA.
 
-    - **ticker**: Simbolo da acao
     - **n_days**: Numero de dias (1-30)
 
     **Atencao**: Previsoes mais distantes tem incerteza significativamente maior.
     """
     try:
-        predictor = get_predictor(ticker)
+        predictor = get_predictor(DEFAULT_TICKER)
         predictions = predictor.predict_n_days(n_days)
 
         return MultiDayPredictionResponse(
-            ticker=ticker.upper(),
+            ticker=DEFAULT_TICKER,
             predictions=[MultiDayPrediction(**p) for p in predictions],
             generated_at=datetime.now().isoformat()
         )
