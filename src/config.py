@@ -32,12 +32,10 @@ EPOCHS = 100                   # epochs=100
 BATCH_SIZE = 32                # batch=32
 TRAIN_TEST_SPLIT = 0.8         # 80% treino
 
-# --- CRITICO: MODO UNIVARIADO ---
-# O original usava apenas df[['Close']]
 FEATURES = ["Close"]
 TARGET = "Close"
 
-EARLY_STOPPING_PATIENCE = 10   # O original usava 10
+EARLY_STOPPING_PATIENCE = 10
 REDUCE_LR_PATIENCE = 5
 
 API_HOST = "0.0.0.0"
