@@ -66,9 +66,6 @@ class StockLSTMModel:
         # Saida
         model.add(Dense(1))
 
-        # --- DIFERENCA CRITICA AQUI ---
-        # O original usava 'mean_squared_error'.
-        # O novo estava usando 'huber'. Voltamos para o MSE.
         model.compile(optimizer='adam', loss='mean_squared_error')
 
         self.model = model
@@ -100,7 +97,7 @@ class StockLSTMModel:
 
         callbacks = self.get_callbacks(ticker)
 
-        # Validacao usando o proprio teste (X_val = X_test), igual ao original
+        # Validacao usando o proprio teste (X_val = X_test)
         self.history = self.model.fit(
             X_train, y_train,
             validation_data=(X_val, y_val),
